@@ -104,3 +104,4 @@ function shutterpress_handle_subscription_purchase($order_id)
     }
 }
 
+require_once plugin_dir_path(__FILE__) . 'download-handler.php';

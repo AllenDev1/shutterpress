@@ -41,8 +41,15 @@ function shutterpress_register_admin_menu()
         'shutterpress_download_logs',
         'shutterpress_render_download_logs_page'
     );
-    add_action('admin_menu', 'shutterpress_register_settings_menu');
 
+    add_submenu_page(
+        'shutterpress',
+        'Watermark Settings',
+        'Watermark Settings',
+        'manage_options',
+        'shutterpress-watermark',
+        'shutterpress_render_watermark_settings_page'
+    );
 
     add_submenu_page(
         'shutterpress',
@@ -52,37 +59,21 @@ function shutterpress_register_admin_menu()
         'shutterpress-settings',
         'shutterpress_settings_page_callback'
     );
-
-
-
 }
-
-// // Optional: Manual table creation from admin notice
-// add_action('admin_notices', function () {
-//     if (!current_user_can('manage_options'))
-//         return;
-
-//     if (isset($_GET['shutterpress_create_tables'])) {
-//         if (function_exists('shutterpress_activate_plugin')) {
-//             shutterpress_activate_plugin();
-//             echo '<div class="notice notice-success"><p>✅ ShutterPress tables created successfully.</p></div>';
-//         } else {
-//             echo '<div class="notice notice-error"><p>❌ Activation function not found.</p></div>';
-//         }
-//     } else {
-//         echo '<div class="notice notice-info"><p><a href="?shutterpress_create_tables=1">Click here to manually create ShutterPress tables</a></p></div>';
-//     }
-// });
 
 // Include admin logic files
 require_once plugin_dir_path(__FILE__) . 'plans.php';
 require_once plugin_dir_path(__FILE__) . 'user-quotas.php';
 require_once plugin_dir_path(__FILE__) . 'product-meta.php';
 require_once plugin_dir_path(__FILE__) . 'settings.php';
-
+require_once plugin_dir_path(__FILE__) . 'watermark-settings.php';
 
 // Hooked callbacks for submenus
 function shutterpress_render_download_logs_page()
 {
     require_once plugin_dir_path(__FILE__) . 'download-logs.php';
 }
+
+// Remove the direct function call - it's now handled by the include
+// The function shutterpress_render_watermark_settings_page() is now available from the include
+?>
