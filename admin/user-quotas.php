@@ -126,16 +126,32 @@ function shutterpress_render_user_quotas_page()
         $quota_total = intval($_POST['quota_total']);
         $quota_used = intval($_POST['quota_used']);
         $status = sanitize_text_field($_POST['status']);
+        $cancel_reason = sanitize_text_field($_POST['cancel_reason'] ?? '');
+        $custom_reason = sanitize_text_field($_POST['custom_reason'] ?? '');
         $renewal_date = sanitize_text_field($_POST['renewal_date']);
 
+        // Build update array
         $update_data = [
             'quota_total' => $quota_total,
             'quota_used' => $quota_used,
             'status' => $status,
         ];
 
+        // Add renewal date if present
         if ($renewal_date) {
             $update_data['quota_renewal_date'] = $renewal_date;
+        }
+
+        // Add cancellation data if status is 'cancelled'
+        if ($status === 'cancelled') {
+            $final_reason = ($cancel_reason === 'custom') ? $custom_reason : $cancel_reason;
+            $update_data['cancel_reason'] = $final_reason;
+            $update_data['cancelled_by'] = 'admin';
+            $update_data['cancelled_at'] = current_time('mysql');
+        } else {
+            $update_data['cancel_reason'] = null;
+            $update_data['cancelled_by'] = null;
+            $update_data['cancelled_at'] = null;
         }
 
         $result = $wpdb->update($table, $update_data, ['id' => $quota_id]);
@@ -190,7 +206,7 @@ function shutterpress_render_user_quotas_page()
                         <tr>
                             <th scope="row">Status</th>
                             <td>
-                                <select name="status">
+                                <select name="status" id="quota-status">
                                     <option value="active" <?php selected($quota->status, 'active'); ?>>Active</option>
                                     <option value="expired" <?php selected($quota->status, 'expired'); ?>>Expired</option>
                                     <option value="cancelled" <?php selected($quota->status, 'cancelled'); ?>>Cancelled</option>
@@ -198,6 +214,22 @@ function shutterpress_render_user_quotas_page()
                                 </select>
                             </td>
                         </tr>
+                        <tr id="cancel-reason-row" style="display:none;">
+                            <th scope="row">Cancel Reason</th>
+                            <td>
+                                <select name="cancel_reason" id="cancel_reason_select">
+                                    <option value="">-- Select Reason --</option>
+                                    <option value="Violation of terms">Violation of terms</option>
+                                    <option value="Refund issued">Refund issued</option>
+                                    <option value="Manual cleanup">Manual cleanup</option>
+                                    <option value="custom">Other (type below)</option>
+                                </select>
+                                <br><br>
+                                <textarea name="custom_reason" placeholder="Custom reason..." rows="3"
+                                    style="width:100%;"></textarea>
+                            </td>
+                        </tr>
+
                         <tr>
                             <th scope="row">Renewal Date</th>
                             <td>
@@ -353,27 +385,32 @@ function shutterpress_render_user_quotas_page()
                     <div class="stat-box" style="background: #f1f1f1; padding: 15px; border-radius: 5px;">
                         <h4>Active Quotas</h4>
                         <p style="font-size: 24px; margin: 0; color: #28a745;">
-                            <?php echo number_format($stats->active_quotas ?? 0); ?></p>
+                            <?php echo number_format($stats->active_quotas ?? 0); ?>
+                        </p>
                     </div>
                     <div class="stat-box" style="background: #f1f1f1; padding: 15px; border-radius: 5px;">
                         <h4>Expired Quotas</h4>
                         <p style="font-size: 24px; margin: 0; color: #dc3545;">
-                            <?php echo number_format($stats->expired_quotas ?? 0); ?></p>
+                            <?php echo number_format($stats->expired_quotas ?? 0); ?>
+                        </p>
                     </div>
                     <div class="stat-box" style="background: #f1f1f1; padding: 15px; border-radius: 5px;">
                         <h4>Full Quotas</h4>
                         <p style="font-size: 24px; margin: 0; color: #fd7e14;">
-                            <?php echo number_format($stats->full_quotas ?? 0); ?></p>
+                            <?php echo number_format($stats->full_quotas ?? 0); ?>
+                        </p>
                     </div>
                     <div class="stat-box" style="background: #f1f1f1; padding: 15px; border-radius: 5px;">
                         <h4>Overdue Renewals</h4>
                         <p style="font-size: 24px; margin: 0; color: #dc3545;">
-                            <?php echo number_format($stats->overdue_quotas ?? 0); ?></p>
+                            <?php echo number_format($stats->overdue_quotas ?? 0); ?>
+                        </p>
                     </div>
                     <div class="stat-box" style="background: #f1f1f1; padding: 15px; border-radius: 5px;">
                         <h4>Total Quota Allocated</h4>
                         <p style="font-size: 24px; margin: 0;">
-                            <?php echo number_format($stats->total_quota_allocated ?? 0); ?></p>
+                            <?php echo number_format($stats->total_quota_allocated ?? 0); ?>
+                        </p>
                     </div>
                     <div class="stat-box" style="background: #f1f1f1; padding: 15px; border-radius: 5px;">
                         <h4>Total Quota Used</h4>
@@ -435,6 +472,18 @@ function shutterpress_render_user_quotas_page()
             $('#user-quotas-filter select[name="filter_plan"], #user-quotas-filter select[name="filter_status"], #user-quotas-filter select[name="filter_quota_usage"], #user-quotas-filter select[name="filter_expiration"], #user-quotas-filter input[type="date"]').on('change', function () {
                 $('#user-quotas-filter').submit();
             });
+        });
+        jQuery(document).ready(function ($) {
+            function toggleCancelReason() {
+                if ($('#quota-status').val() === 'cancelled') {
+                    $('#cancel-reason-row').show();
+                } else {
+                    $('#cancel-reason-row').hide();
+                }
+            }
+
+            $('#quota-status').on('change', toggleCancelReason);
+            toggleCancelReason(); // On load
         });
     </script>
     <?php

@@ -43,7 +43,7 @@ function shutterpress_register_admin_menu()
     );
 }
 
-// Show table creation button
+// Optional: Manual table creation from admin notice
 add_action('admin_notices', function () {
     if (!current_user_can('manage_options'))
         return;
@@ -60,10 +60,14 @@ add_action('admin_notices', function () {
     }
 });
 
-// Include logic files
+// Include admin logic files
 require_once plugin_dir_path(__FILE__) . 'plans.php';
 require_once plugin_dir_path(__FILE__) . 'user-quotas.php';
+require_once plugin_dir_path(__FILE__) . 'product-meta.php';
 
-function shutterpress_render_download_logs_page() {
+
+// Hooked callbacks for submenus
+function shutterpress_render_download_logs_page()
+{
     require_once plugin_dir_path(__FILE__) . 'download-logs.php';
 }

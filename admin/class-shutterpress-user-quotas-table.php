@@ -203,12 +203,14 @@ class ShutterPress_User_Quotas_Table extends WP_List_Table
             'plan' => 'Plan',
             'quota_info' => 'Quota Usage',
             'status' => 'Status',
+            'cancel_info' => 'Cancel Info', // ✅ ADD THIS LINE
             'renewal_date' => 'Renewal Date',
             'created_at' => 'Created',
             'last_download' => 'Last Download',
             'actions' => 'Actions',
         ];
     }
+
 
     public function get_sortable_columns()
     {
@@ -302,6 +304,21 @@ class ShutterPress_User_Quotas_Table extends WP_List_Table
             esc_html(ucfirst($item->status)) .
             '</span>';
     }
+    public function column_cancel_info($item)
+    {
+        if ($item->status !== 'cancelled') {
+            return '-';
+        }
+
+        $reason = $item->cancel_reason ?: 'N/A';
+        $by = $item->cancelled_by ?: 'N/A';
+        $at = $item->cancelled_at ? date('Y-m-d H:i', strtotime($item->cancelled_at)) : 'N/A';
+
+        return "<strong>Reason:</strong> " . esc_html($reason) . "<br>" .
+            "<strong>By:</strong> " . esc_html($by) . "<br>" .
+            "<strong>At:</strong> " . esc_html($at);
+    }
+
 
     public function column_renewal_date($item)
     {

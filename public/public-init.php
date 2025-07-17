@@ -56,6 +56,24 @@ add_action('dokan_load_custom_template', function ($query_var) {
     }
 });
 
+
+function shutterpress_find_shortcode_page($shortcode) {
+    $pages = get_posts([
+        'post_type' => 'page',
+        'post_status' => 'publish',
+        'numberposts' => -1
+    ]);
+
+    foreach ($pages as $page) {
+        if (has_shortcode($page->post_content, $shortcode)) {
+            return $page->ID;
+        }
+    }
+
+    return false;
+}
+
+
 // ----------------------------
 // Public Logic Includes
 // ----------------------------
@@ -64,3 +82,4 @@ require_once plugin_dir_path(__FILE__) . 'download-history.php';
 require_once plugin_dir_path(__FILE__) . 'download-button-handler.php';
 require_once plugin_dir_path(__FILE__) . 'dokan-product-meta.php';
 require_once plugin_dir_path(__FILE__) . 'subscription-status.php';
+require_once plugin_dir_path(__FILE__) . 'plans-display.php';
