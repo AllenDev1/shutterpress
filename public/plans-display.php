@@ -73,7 +73,7 @@ function shutterpress_render_frontend_plans()
                         }
                         ?>
                         <div class="shutterpress-plan-card">
-                            <?php if ($is_featured): ?>
+                            <?php if ($plan->is_unlimited): ?>
                                 <div class="shutterpress-plan-badge">Most Popular</div>
                             <?php endif; ?>
 
