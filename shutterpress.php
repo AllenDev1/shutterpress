@@ -23,6 +23,15 @@ function shutterpress_enqueue_styles() {
     );
 }
 
+// Register custom product tag on plugin activation
+function shutterpress_register_plan_tag() {
+    if (!term_exists('shutterpress-plan-product', 'product_tag')) {
+        wp_insert_term('ShutterPress Plan Product', 'product_tag', [
+            'slug' => 'shutterpress-plan-product',
+        ]);
+    }
+}
+register_activation_hook(__FILE__, 'shutterpress_register_plan_tag');
 
 
 require_once SHUTTERPRESS_PATH . 'includes/init.php';

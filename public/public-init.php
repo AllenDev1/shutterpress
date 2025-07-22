@@ -5,7 +5,8 @@ defined('ABSPATH') || exit;
 // ----------------------------
 // Register WooCommerce Endpoints
 // ----------------------------
-function shutterpress_add_account_endpoints() {
+function shutterpress_add_account_endpoints()
+{
     add_rewrite_endpoint('shutterpress-subscription', EP_ROOT | EP_PAGES);
     add_rewrite_endpoint('shutterpress-downloads', EP_ROOT | EP_PAGES);
 }
@@ -14,9 +15,9 @@ add_action('init', 'shutterpress_add_account_endpoints');
 // ----------------------------
 // My Account Page Tabs & Content
 // ----------------------------
-add_filter('woocommerce_account_menu_items', function($items) {
+add_filter('woocommerce_account_menu_items', function ($items) {
     $items['shutterpress-subscription'] = __('My Subscription', 'shutterpress');
-    $items['shutterpress-downloads']    = __('Download History', 'shutterpress');
+    $items['shutterpress-downloads'] = __('Download History', 'shutterpress');
     return $items;
 });
 
@@ -34,15 +35,15 @@ add_action('woocommerce_account_shutterpress-downloads_endpoint', function () {
 add_filter('dokan_get_dashboard_nav', function ($urls) {
     $urls['shutterpress-subscription'] = [
         'title' => __('My Subscription', 'shutterpress'),
-        'url'   => dokan_get_navigation_url('shutterpress-subscription'),
-        'icon'  => '<i class="fas fa-box"></i>',
-        'pos'   => 65,
+        'url' => dokan_get_navigation_url('shutterpress-subscription'),
+        'icon' => '<i class="fas fa-box"></i>',
+        'pos' => 65,
     ];
     $urls['shutterpress-downloads'] = [
         'title' => __('Download History', 'shutterpress'),
-        'url'   => dokan_get_navigation_url('shutterpress-downloads'),
-        'icon'  => '<i class="fas fa-download"></i>',
-        'pos'   => 66,
+        'url' => dokan_get_navigation_url('shutterpress-downloads'),
+        'icon' => '<i class="fas fa-download"></i>',
+        'pos' => 66,
     ];
     return $urls;
 });
@@ -57,7 +58,8 @@ add_action('dokan_load_custom_template', function ($query_var) {
 });
 
 
-function shutterpress_find_shortcode_page($shortcode) {
+function shutterpress_find_shortcode_page($shortcode)
+{
     $pages = get_posts([
         'post_type' => 'page',
         'post_status' => 'publish',
@@ -72,6 +74,28 @@ function shutterpress_find_shortcode_page($shortcode) {
 
     return false;
 }
+
+// Hide tagged subscription plan products from public queries
+add_action('pre_get_posts', function ($query) {
+    // Skip admin, but allow all frontend queries including widgets/shortcodes
+    if (is_admin()) return;
+
+    // Apply only to WooCommerce product queries
+    if ('product' !== $query->get('post_type')) return;
+
+    $tax_query = $query->get('tax_query') ?: [];
+
+    $tax_query[] = [
+        'taxonomy' => 'product_tag',
+        'field'    => 'slug',
+        'terms'    => ['shutterpress-plan-product'],
+        'operator' => 'NOT IN',
+    ];
+
+    $query->set('tax_query', $tax_query);
+});
+
+
 
 
 // ----------------------------
