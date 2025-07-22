@@ -59,6 +59,37 @@ function shutterpress_activate_plugin()
     dbDelta($sql1);
     dbDelta($sql2);
     dbDelta($sql3);
+
+    // ✅ New: Auto-create Subscription Plans page
+    shutterpress_create_plans_page();
+}
+
+// ✅ New: Function to create [shutterpress_plans] page
+function shutterpress_create_plans_page()
+{
+    $existing = get_pages([
+        'post_type' => 'page',
+        'post_status' => 'publish',
+        'suppress_filters' => true,
+    ]);
+
+    foreach ($existing as $page) {
+        if (has_shortcode($page->post_content, 'shutterpress_plans')) {
+            update_option('shutterpress_plans_page_id', $page->ID);
+            return;
+        }
+    }
+
+    $page_id = wp_insert_post([
+        'post_title' => 'Subscription Plans',
+        'post_content' => '[shutterpress_plans]',
+        'post_status' => 'publish',
+        'post_type' => 'page',
+    ]);
+
+    if ($page_id && !is_wp_error($page_id)) {
+        update_option('shutterpress_plans_page_id', $page_id);
+    }
 }
 
 // Hook: Add user quota when WooCommerce order is completed
@@ -104,4 +135,5 @@ function shutterpress_handle_subscription_purchase($order_id)
     }
 }
 
+// Load download handling
 require_once plugin_dir_path(__FILE__) . 'download-handler.php';
