@@ -40,3 +40,31 @@ add_action('woocommerce_process_product_meta', function ($post_id) {
 });
 
 
+add_action('save_post_product', function ($post_id) {
+    // Avoid autosaves
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+
+    $product = wc_get_product($post_id);
+    if (!$product || !$product->is_downloadable()) {
+        return;
+    }
+
+    $downloads = $product->get_downloads();
+    if (empty($downloads)) return;
+
+    // Use the first downloadable file
+    $first = reset($downloads);
+    $url = $first['file'];
+
+    // Parse the URL to get the object key
+    $parsed = wp_parse_url($url);
+    if (empty($parsed['path'])) return;
+
+    $object_key = ltrim($parsed['path'], '/');
+
+    // ❗ Strip bucket name if accidentally included
+    $object_key = preg_replace('#^designfabricmedia/#', '', $object_key);
+
+    // Save cleaned key to meta
+    update_post_meta($post_id, '_wasabi_object_key', $object_key);
+}, 20);

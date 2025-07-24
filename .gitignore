@@ -46,3 +46,34 @@ wp-config.php
 # Note: If you wish to whitelist themes,
 # uncomment the next line
 #/wp-content/themes
+
+
+# Ignore Composer dependencies
+/vendor/
+
+# Composer lock file (optional, but often committed for reproducibility)
+# Uncomment if you want to ignore it
+# composer.lock
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE or editor settings
+*.sublime-project
+*.sublime-workspace
+.idea/
+.vscode/
+
+# Log and cache files
+*.log
+cache/
+tmp/
+
+# Environment and config files
+.env
+.env.local
+.env.*.local
+
+# PHPUnit result cache
+.phpunit.result.cache
