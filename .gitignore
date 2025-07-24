@@ -1,79 +1,84 @@
-# Wordpress - ignore core, configuration, examples, uploads and logs.
-# https://github.com/github/gitignore/blob/main/WordPress.gitignore
+# ===========================================
+# ShutterPress WordPress Plugin - .gitignore
+# ===========================================
 
-# Core
-#
-# Note: if you want to stage/commit WP core files
-# you can delete this whole section/until Configuration.
-/wp-admin/
-/wp-content/index.php
-/wp-content/languages
-/wp-content/plugins/index.php
-/wp-content/themes/index.php
-/wp-includes/
-/index.php
-/license.txt
-/readme.html
-/wp-*.php
-/xmlrpc.php
+# ✅ Composer Dependencies
+vendor/
+composer.phar
 
-# Configuration
-wp-config.php
+# ✅ Node.js Dependencies (if you add any)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Example themes
-/wp-content/themes/twenty*/
-
-# Example plugin
-/wp-content/plugins/hello.php
-
-# Uploads
-/wp-content/uploads/
-
-# Log files
-*.log
-
-# htaccess
-/.htaccess
-
-# All plugins
-#
-# Note: If you wish to whitelist plugins,
-# uncomment the next line
-#/wp-content/plugins
-
-# All themes
-#
-# Note: If you wish to whitelist themes,
-# uncomment the next line
-#/wp-content/themes
-
-
-# Ignore Composer dependencies
-/vendor/
-
-# Composer lock file (optional, but often committed for reproducibility)
-# Uncomment if you want to ignore it
-# composer.lock
-
-# OS-specific files
-.DS_Store
-Thumbs.db
-
-# IDE or editor settings
-*.sublime-project
-*.sublime-workspace
-.idea/
-.vscode/
-
-# Log and cache files
-*.log
-cache/
-tmp/
-
-# Environment and config files
+# ✅ Environment & Credentials
 .env
 .env.local
-.env.*.local
+.env.development
+.env.test
+.env.production
+wp-config-local.php
 
-# PHPUnit result cache
+# ✅ IDE & Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ✅ OS Generated Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ✅ Build & Distribution Files
+dist/
+build/
+*.zip
+*.tar.gz
+*.rar
+shutterpress-*.zip
+
+# ✅ Log Files
+*.log
+error_log
+debug.log
+logs/
+
+# ✅ Temporary Files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ✅ WordPress Specific
+wp-config.php
+.htaccess
+uploads/
+
+# ✅ Plugin Development
+tests/coverage/
+phpunit.xml
 .phpunit.result.cache
+
+# ✅ Backup Files
+*.bak
+*.backup
+*~
+
+# ===========================================
+# INCLUDE THESE (Don't ignore)
+# ===========================================
+# ✅ Keep these files in version control:
+# - composer.json (dependency definitions)
+# - composer.lock (locked versions)
+# - *.php (all source code)
+# - assets/ (CSS, JS, images)
+# - includes/ admin/ public/ (plugin structure)
+# - README.md, documentation
