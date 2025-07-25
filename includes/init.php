@@ -46,12 +46,13 @@ function shutterpress_activate_plugin()
         last_download DATETIME DEFAULT NULL
     ) $charset_collate;";
 
-    // Create download logs table
+    // Create download logs table - FIXED SYNTAX
     $sql3 = "CREATE TABLE $logs_table (
         id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         user_id BIGINT UNSIGNED NOT NULL,
         product_id BIGINT UNSIGNED NOT NULL,
         download_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+        download_type VARCHAR(50) DEFAULT 'free',
         ip_address VARCHAR(100),
         user_agent TEXT
     ) $charset_collate;";
@@ -60,11 +61,9 @@ function shutterpress_activate_plugin()
     dbDelta($sql2);
     dbDelta($sql3);
 
-    // ✅ New: Auto-create Subscription Plans page
     shutterpress_create_plans_page();
 }
 
-// ✅ New: Function to create [shutterpress_plans] page
 function shutterpress_create_plans_page()
 {
     $existing = get_pages([
@@ -92,7 +91,6 @@ function shutterpress_create_plans_page()
     }
 }
 
-// Hook: Add user quota when WooCommerce order is completed
 add_action('woocommerce_order_status_completed', 'shutterpress_handle_subscription_purchase');
 
 function shutterpress_handle_subscription_purchase($order_id)
@@ -135,5 +133,4 @@ function shutterpress_handle_subscription_purchase($order_id)
     }
 }
 
-// Load download handling
 require_once plugin_dir_path(__FILE__) . 'download-handler.php';
