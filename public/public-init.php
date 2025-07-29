@@ -108,3 +108,4 @@ require_once plugin_dir_path(__FILE__) . 'dokan-product-meta.php';
 require_once plugin_dir_path(__FILE__) . 'subscription-status.php';
 require_once plugin_dir_path(__FILE__) . 'plans-display.php';
 require_once plugin_dir_path(__FILE__) . 'watermark-handler.php';
+require_once plugin_dir_path(__FILE__) . 'dokan-hooks.php';
