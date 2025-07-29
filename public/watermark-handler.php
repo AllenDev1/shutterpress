@@ -1,5 +1,5 @@
 <?php
-// File: includes/public/watermark-handler.php
+// File: public/watermark-handler.php
 
 class ShutterPress_Watermark_Handler {
     
@@ -88,12 +88,12 @@ class ShutterPress_Watermark_Handler {
         // Clean up old watermarks periodically
         add_action('wp_scheduled_delete', array($this, 'cleanup_old_watermarks'));
         
-        // Add settings update hook to clear cache
-        add_action('update_option_shutterpress_watermark_text', array($this, 'clear_watermark_cache'));
-        add_action('update_option_shutterpress_watermark_opacity', array($this, 'clear_watermark_cache'));
-        add_action('update_option_shutterpress_watermark_size', array($this, 'clear_watermark_cache'));
-        add_action('update_option_shutterpress_watermark_angle', array($this, 'clear_watermark_cache'));
-        add_action('update_option_shutterpress_watermark_spacing', array($this, 'clear_watermark_cache'));
+        // Add settings update hook to clear cache and run debugger
+        add_action('update_option_shutterpress_watermark_text', array($this, 'on_settings_updated'));
+        add_action('update_option_shutterpress_watermark_opacity', array($this, 'on_settings_updated'));
+        add_action('update_option_shutterpress_watermark_size', array($this, 'on_settings_updated'));
+        add_action('update_option_shutterpress_watermark_angle', array($this, 'on_settings_updated'));
+        add_action('update_option_shutterpress_watermark_spacing', array($this, 'on_settings_updated'));
     }
     
     public function watermark_product_image($html, $post_thumbnail_id) {
@@ -106,6 +106,9 @@ class ShutterPress_Watermark_Handler {
         $watermarked_url = $this->get_watermarked_image_url($post_thumbnail_id);
         if ($watermarked_url) {
             $html = preg_replace('/src="([^"]*)"/', 'src="' . esc_url($watermarked_url) . '" data-original-src="$1"', $html);
+        } else {
+            // Log the failure but still show the original image
+            error_log("ShutterPress: Failed to get watermarked URL for thumbnail ID: " . $post_thumbnail_id);
         }
         
         return $html;
@@ -122,6 +125,8 @@ class ShutterPress_Watermark_Handler {
         if ($watermarked_url) {
             $html = preg_replace('/src="([^"]*)"/', 'src="' . esc_url($watermarked_url) . '" data-original-src="$1"', $html);
             $html = preg_replace('/srcset="([^"]*)"/', 'data-original-srcset="$1"', $html);
+        } else {
+            error_log("ShutterPress: Failed to get watermarked URL for main image ID: " . $post_thumbnail_id);
         }
         
         return $html;
@@ -143,6 +148,8 @@ class ShutterPress_Watermark_Handler {
                 if ($watermarked_url) {
                     $original_url = wp_get_attachment_url($image_id);
                     $html = str_replace($original_url, $watermarked_url, $html);
+                } else {
+                    error_log("ShutterPress: Failed to get watermarked URL for gallery image ID: " . $image_id);
                 }
             }
         }
@@ -164,6 +171,8 @@ class ShutterPress_Watermark_Handler {
         $watermarked_url = $this->get_watermarked_image_url($post_thumbnail_id, $size);
         if ($watermarked_url) {
             $html = preg_replace('/src="([^"]*)"/', 'src="' . esc_url($watermarked_url) . '" data-original-src="$1"', $html);
+        } else {
+            error_log("ShutterPress: Failed to get watermarked URL for shop thumbnail ID: " . $post_thumbnail_id);
         }
         
         return $html;
@@ -182,6 +191,8 @@ class ShutterPress_Watermark_Handler {
         $watermarked_url = $this->get_watermarked_image_url($attachment_id, $size);
         if ($watermarked_url) {
             $image = preg_replace('/src="([^"]*)"/', 'src="' . esc_url($watermarked_url) . '" data-original-src="$1"', $image);
+        } else {
+            error_log("ShutterPress: Failed to get watermarked URL for product thumbnail ID: " . $attachment_id);
         }
         
         return $image;
@@ -202,6 +213,8 @@ class ShutterPress_Watermark_Handler {
         $watermarked_url = $this->get_watermarked_image_url($attachment_id, $size);
         if ($watermarked_url && isset($image[0])) {
             $image[0] = $watermarked_url;
+        } else {
+            error_log("ShutterPress: Failed to get watermarked URL for attachment ID: " . $attachment_id);
         }
         
         return $image;
@@ -209,17 +222,37 @@ class ShutterPress_Watermark_Handler {
     
     private function should_watermark_product($product) {
         if (!$product || !is_object($product)) {
+            error_log('ShutterPress: should_watermark_product - No product or invalid product object');
             return false;
         }
         
-        $product_type = get_post_meta($product->get_id(), '_shutterpress_product_type', true);
+        $product_id = $product->get_id();
+        $product_type = get_post_meta($product_id, '_shutterpress_product_type', true);
+        
+        // Debug logging
+        error_log('ShutterPress: Checking watermark for product ID: ' . $product_id);
+        error_log('ShutterPress: Product type: ' . $product_type);
         
         // Watermark all ShutterPress product types
-        if (in_array($product_type, ['free', 'subscription', 'premium'])) {
-            return true;
+        $should_watermark = in_array($product_type, ['free', 'subscription', 'premium']);
+        
+        // If no specific product type is set, check if this might be a ShutterPress product by other means
+        if (!$should_watermark && empty($product_type)) {
+            // Check if product has the ShutterPress tag
+            $product_tags = wp_get_post_terms($product_id, 'product_tag', array('fields' => 'slugs'));
+            if (!is_wp_error($product_tags) && in_array('shutterpress-plan-product', $product_tags)) {
+                $should_watermark = true;
+                error_log('ShutterPress: Product has shutterpress-plan-product tag, enabling watermark');
+            }
+            
+            // For debugging: Temporarily watermark ALL products (remove this later)
+            // Uncomment the line below if you want to test watermarking on all products
+            // $should_watermark = true;
         }
         
-        return false;
+        error_log('ShutterPress: Should watermark product ' . $product_id . '? ' . ($should_watermark ? 'YES' : 'NO'));
+        
+        return $should_watermark;
     }
     
     private function get_product_from_attachment($attachment_id) {
@@ -250,11 +283,13 @@ class ShutterPress_Watermark_Handler {
     
     public function get_watermarked_image_url($attachment_id, $size = 'full') {
         if (!$this->gd_available) {
+            error_log("ShutterPress: GD extension not available for watermarking");
             return false;
         }
         
         $original_file = get_attached_file($attachment_id);
         if (!$original_file || !file_exists($original_file)) {
+            error_log("ShutterPress: Original file not found for attachment ID: " . $attachment_id . " - File: " . $original_file);
             return false;
         }
         
@@ -273,7 +308,6 @@ class ShutterPress_Watermark_Handler {
                 // Get the actual sized image file
                 $image_meta = wp_get_attachment_metadata($attachment_id);
                 if ($image_meta && isset($image_meta['sizes']) && isset($image_meta['sizes'][$size])) {
-                    $upload_dir = wp_upload_dir();
                     $source_file = path_join(dirname($original_file), $image_meta['sizes'][$size]['file']);
                 }
             }
@@ -291,21 +325,33 @@ class ShutterPress_Watermark_Handler {
             return $watermarked_url;
         }
         
-        // Generate watermarked version
-        if ($this->generate_watermarked_image($source_file, $watermarked_file)) {
-            return $watermarked_url;
+        // Check if directory is writable
+        if (!is_writable($this->watermark_dir)) {
+            error_log("ShutterPress: Watermark directory not writable: " . $this->watermark_dir);
+            return false;
         }
         
-        return false;
+        // Generate watermarked version
+        $generation_result = $this->generate_watermarked_image($source_file, $watermarked_file);
+        
+        if ($generation_result && file_exists($watermarked_file)) {
+            error_log("ShutterPress: Successfully generated watermark for: " . $watermarked_filename);
+            return $watermarked_url;
+        } else {
+            error_log("ShutterPress: Failed to generate watermark for: " . $source_file . " -> " . $watermarked_file);
+            return false;
+        }
     }
     
     private function generate_watermarked_image($source_file, $destination_file) {
         if (!$this->gd_available || !file_exists($source_file)) {
+            error_log("ShutterPress: Cannot generate watermark - GD not available or source file missing: " . $source_file);
             return false;
         }
         
         $image_info = getimagesize($source_file);
         if (!$image_info) {
+            error_log("ShutterPress: Cannot get image info for: " . $source_file);
             return false;
         }
         
@@ -315,12 +361,14 @@ class ShutterPress_Watermark_Handler {
         
         // Skip very small images
         if ($width < 100 || $height < 100) {
+            error_log("ShutterPress: Image too small for watermarking: " . $width . "x" . $height);
             return false;
         }
         
         // Create image resource
         $source_image = $this->create_image_resource($source_file, $mime_type);
         if (!$source_image) {
+            error_log("ShutterPress: Failed to create image resource for: " . $source_file);
             return false;
         }
         
@@ -331,6 +379,13 @@ class ShutterPress_Watermark_Handler {
         $result = $this->save_image_resource($source_image, $destination_file, $mime_type);
         
         imagedestroy($source_image);
+        
+        if ($result) {
+            error_log("ShutterPress: Successfully saved watermarked image: " . $destination_file);
+        } else {
+            error_log("ShutterPress: Failed to save watermarked image: " . $destination_file);
+        }
+        
         return $result;
     }
     
@@ -505,7 +560,7 @@ class ShutterPress_Watermark_Handler {
     
     private function get_font_path() {
         // Try to use a custom font from plugin assets
-        $font_path = plugin_dir_path(__FILE__) . '../assets/fonts/arial.ttf';
+        $font_path = plugin_dir_path(__FILE__) . '../assets/fonts/DejaVuSans.ttf';
         
         if (file_exists($font_path)) {
             return $font_path;
@@ -513,7 +568,7 @@ class ShutterPress_Watermark_Handler {
         
         // Try system fonts
         $system_fonts = [
-            '/System/Library/Fonts/Arial.ttf',                    // macOS
+            '/System/Library/Fonts/DejaVuSans.ttf',                    // macOS
             '/System/Library/Fonts/Helvetica.ttc',               // macOS
             '/Windows/Fonts/arial.ttf',                          // Windows
             '/Windows/Fonts/calibri.ttf',                        // Windows
@@ -555,6 +610,155 @@ class ShutterPress_Watermark_Handler {
         }
     }
     
+    
+    // Handle settings updates - clear cache and run debugger
+    public function on_settings_updated() {
+        // Clear cache first
+        $cleared = $this->clear_watermark_cache();
+        error_log("ShutterPress: Settings updated - cleared {$cleared} cached files");
+        
+        // Reload settings
+        $this->load_settings();
+        
+        // Run comprehensive product debugger
+        $this->debug_all_products();
+    }
+    
+    // Comprehensive debugger that checks all products
+    public function debug_all_products() {
+        error_log("ShutterPress: =============== WATERMARK DEBUGGER START ===============");
+        error_log("ShutterPress: Running comprehensive product watermark check...");
+        
+        // Get all products
+        $products = get_posts([
+            'post_type' => 'product',
+            'post_status' => 'publish', 
+            'numberposts' => -1
+        ]);
+        
+        if (empty($products)) {
+            error_log("ShutterPress: No products found in database");
+            return;
+        }
+        
+        error_log("ShutterPress: Found " . count($products) . " products to check");
+        
+        $watermarked_count = 0;
+        $not_watermarked_count = 0;
+        $error_count = 0;
+        
+        foreach ($products as $product_post) {
+            $product = wc_get_product($product_post->ID);
+            if (!$product) {
+                error_log("ShutterPress: Could not load WooCommerce product for ID: " . $product_post->ID);
+                $error_count++;
+                continue;
+            }
+            
+            $result = $this->debug_single_product($product);
+            
+            if ($result['should_watermark']) {
+                $watermarked_count++;
+            } else {
+                $not_watermarked_count++;
+            }
+            
+            if (isset($result['error'])) {
+                $error_count++;
+            }
+        }
+        
+        // Summary
+        error_log("ShutterPress: =============== WATERMARK DEBUGGER SUMMARY ===============");
+        error_log("ShutterPress: Total products checked: " . count($products));
+        error_log("ShutterPress: Products that WILL get watermarks: " . $watermarked_count);
+        error_log("ShutterPress: Products that will NOT get watermarks: " . $not_watermarked_count);
+        error_log("ShutterPress: Products with errors: " . $error_count);
+        error_log("ShutterPress: =============== WATERMARK DEBUGGER END ===============");
+    }
+    
+    // Debug a single product in detail
+    public function debug_single_product($product) {
+        $product_id = $product->get_id();
+        $product_name = $product->get_name();
+        $result = array();
+        
+        error_log("ShutterPress: --- Checking Product ID: {$product_id} | Name: {$product_name} ---");
+        
+        // Check product type
+        $product_type = get_post_meta($product_id, '_shutterpress_product_type', true);
+        error_log("ShutterPress: Product type meta: '" . $product_type . "'");
+        
+        // Check if product has featured image
+        $thumbnail_id = get_post_thumbnail_id($product_id);
+        if ($thumbnail_id) {
+            error_log("ShutterPress: Has featured image: ID {$thumbnail_id}");
+            $image_file = get_attached_file($thumbnail_id);
+            if ($image_file && file_exists($image_file)) {
+                error_log("ShutterPress: Featured image file exists: {$image_file}");
+            } else {
+                error_log("ShutterPress: WARNING - Featured image file missing: {$image_file}");
+            }
+        } else {
+            error_log("ShutterPress: No featured image set");
+        }
+        
+        // Check product tags
+        $product_tags = wp_get_post_terms($product_id, 'product_tag', array('fields' => 'slugs'));
+        if (!is_wp_error($product_tags) && !empty($product_tags)) {
+            error_log("ShutterPress: Product tags: " . implode(', ', $product_tags));
+            if (in_array('shutterpress-plan-product', $product_tags)) {
+                error_log("ShutterPress: Has shutterpress-plan-product tag");
+            }
+        } else {
+            error_log("ShutterPress: No product tags");
+        }
+        
+        // Check WooCommerce product type
+        $wc_product_type = $product->get_type();
+        error_log("ShutterPress: WooCommerce product type: {$wc_product_type}");
+        
+        // Check if downloadable/virtual
+        $is_downloadable = $product->is_downloadable();
+        $is_virtual = $product->is_virtual();
+        error_log("ShutterPress: Is downloadable: " . ($is_downloadable ? 'YES' : 'NO'));
+        error_log("ShutterPress: Is virtual: " . ($is_virtual ? 'YES' : 'NO'));
+        
+        // Check watermark decision
+        $should_watermark = $this->should_watermark_product($product);
+        $result['should_watermark'] = $should_watermark;
+        
+        if ($should_watermark) {
+            error_log("ShutterPress: ✅ WILL WATERMARK - Product qualifies for watermarking");
+            
+            // Test watermark generation if has featured image
+            if ($thumbnail_id) {
+                $watermark_url = $this->get_watermarked_image_url($thumbnail_id);
+                if ($watermark_url) {
+                    error_log("ShutterPress: ✅ Watermark generation test PASSED");
+                } else {
+                    error_log("ShutterPress: ❌ Watermark generation test FAILED");
+                    $result['error'] = 'Watermark generation failed';
+                }
+            }
+        } else {
+            error_log("ShutterPress: ❌ WILL NOT WATERMARK");
+            
+            // Explain why not
+            if (empty($product_type)) {
+                error_log("ShutterPress: Reason: No _shutterpress_product_type meta field set");
+            } elseif (!in_array($product_type, ['free', 'subscription', 'premium'])) {
+                error_log("ShutterPress: Reason: Product type '{$product_type}' not in allowed types (free, subscription, premium)");
+            } else {
+                error_log("ShutterPress: Reason: Unknown - should_watermark_product() returned false");
+            }
+        }
+        
+        error_log("ShutterPress: --- End Product {$product_id} Check ---");
+        
+        return $result;
+    }
+    
     public function clear_watermark_cache() {
         if (!is_dir($this->watermark_dir)) {
             return 0;
@@ -570,6 +774,7 @@ class ShutterPress_Watermark_Handler {
             }
         }
         
+        error_log("ShutterPress: Cleared watermark cache - {$deleted} files deleted");
         return $deleted;
     }
     
@@ -599,7 +804,138 @@ class ShutterPress_Watermark_Handler {
     public function is_watermarking_available() {
         return $this->gd_available;
     }
+    
+    // Debug method for testing watermark generation
+    public function debug_watermark_generation($attachment_id, $size = 'full') {
+        $debug_info = array();
+        
+        // Check GD availability
+        $debug_info['gd_available'] = $this->gd_available;
+        if (!$this->gd_available) {
+            $debug_info['error'] = 'GD extension not available';
+            return $debug_info;
+        }
+        
+        // Check original file
+        $original_file = get_attached_file($attachment_id);
+        $debug_info['original_file'] = $original_file;
+        $debug_info['original_file_exists'] = file_exists($original_file);
+        
+        if (!$original_file || !file_exists($original_file)) {
+            $debug_info['error'] = 'Original file not found: ' . $original_file;
+            return $debug_info;
+        }
+        
+        // Check file permissions
+        $debug_info['original_file_readable'] = is_readable($original_file);
+        $debug_info['original_file_size'] = filesize($original_file);
+        
+        // Check watermark directory
+        $debug_info['watermark_dir'] = $this->watermark_dir;
+        $debug_info['watermark_dir_exists'] = is_dir($this->watermark_dir);
+        $debug_info['watermark_dir_writable'] = is_writable($this->watermark_dir);
+        
+        // Check image info
+        $image_info = getimagesize($original_file);
+        $debug_info['image_info'] = $image_info;
+        
+        if (!$image_info) {
+            $debug_info['error'] = 'Cannot get image info for: ' . $original_file;
+            return $debug_info;
+        }
+        
+        $debug_info['mime_type'] = $image_info['mime'];
+        $debug_info['width'] = $image_info[0];
+        $debug_info['height'] = $image_info[1];
+        
+        // Check if image is too small
+        if ($image_info[0] < 100 || $image_info[1] < 100) {
+            $debug_info['error'] = 'Image too small for watermarking: ' . $image_info[0] . 'x' . $image_info[1];
+            return $debug_info;
+        }
+        
+        // Test image resource creation
+        $source_image = $this->create_image_resource($original_file, $image_info['mime']);
+        $debug_info['image_resource_created'] = ($source_image !== false);
+        
+        if (!$source_image) {
+            $debug_info['error'] = 'Failed to create image resource for: ' . $image_info['mime'];
+            return $debug_info;
+        }
+        
+        // Test watermark file generation
+        $pathinfo = pathinfo($original_file);
+        $settings_hash = md5($this->watermark_text . $this->watermark_opacity . $this->watermark_size . $this->watermark_angle . $this->watermark_spacing);
+        $size_suffix = is_array($size) ? $size[0] . 'x' . $size[1] : $size;
+        $watermarked_filename = $pathinfo['filename'] . '_watermarked_' . $size_suffix . '_' . $settings_hash . '.' . $pathinfo['extension'];
+        $watermarked_file = $this->watermark_dir . $watermarked_filename;
+        
+        $debug_info['watermarked_filename'] = $watermarked_filename;
+        $debug_info['watermarked_file'] = $watermarked_file;
+        
+        // Try to generate watermark
+        $generation_result = $this->generate_watermarked_image($original_file, $watermarked_file);
+        $debug_info['generation_successful'] = $generation_result;
+        $debug_info['watermarked_file_exists'] = file_exists($watermarked_file);
+        
+        if ($generation_result && file_exists($watermarked_file)) {
+            $debug_info['watermarked_file_size'] = filesize($watermarked_file);
+            $debug_info['success'] = true;
+        } else {
+            $debug_info['error'] = 'Watermark generation failed';
+        }
+        
+        // Clean up
+        if ($source_image) {
+            imagedestroy($source_image);
+        }
+        
+        return $debug_info;
+    }
+    
+    // System status check method
+    public function get_system_status() {
+        $status = array();
+        
+        // GD Extension
+        $status['gd_extension'] = array(
+            'available' => extension_loaded('gd'),
+            'functions' => array(
+                'imagecreatefromjpeg' => function_exists('imagecreatefromjpeg'),
+                'imagecreatefrompng' => function_exists('imagecreatefrompng'),
+                'imagecreatefromgif' => function_exists('imagecreatefromgif'),
+                'imagecreatefromwebp' => function_exists('imagecreatefromwebp'),
+                'imagettftext' => function_exists('imagettftext'),
+            )
+        );
+        
+        // Directory Status
+        $status['directories'] = array(
+            'watermark_dir' => $this->watermark_dir,
+            'exists' => is_dir($this->watermark_dir),
+            'writable' => is_writable($this->watermark_dir),
+            'permissions' => is_dir($this->watermark_dir) ? substr(sprintf('%o', fileperms($this->watermark_dir)), -4) : 'N/A'
+        );
+        
+        // Font Status
+        $status['fonts'] = array(
+            'font_path' => $this->get_font_path(),
+            'font_available' => ($this->get_font_path() !== false)
+        );
+        
+        // Settings
+        $status['settings'] = array(
+            'text' => $this->watermark_text,
+            'opacity' => $this->watermark_opacity,
+            'size' => $this->watermark_size,
+            'angle' => $this->watermark_angle,
+            'spacing' => $this->watermark_spacing
+        );
+        
+        return $status;
+    }
 }
 
 // Initialize the watermark handler
-new ShutterPress_Watermark_Handler();
+global $shutterpress_watermark_handler;
+$shutterpress_watermark_handler = new ShutterPress_Watermark_Handler();

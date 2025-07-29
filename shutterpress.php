@@ -58,11 +58,14 @@ function shutterpress_enable_wasabi_for_products($value, $key)
 add_action('woocommerce_process_product_meta', 'shutterpress_handle_downloadable_files', 25);
 function shutterpress_handle_downloadable_files($post_id)
 {
-    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
-    if (wp_is_post_revision($post_id)) return;
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE)
+        return;
+    if (wp_is_post_revision($post_id))
+        return;
 
     $product = wc_get_product($post_id);
-    if (!$product || !$product->is_downloadable()) return;
+    if (!$product || !$product->is_downloadable())
+        return;
 
     delete_post_meta($post_id, '_wasabi_object_key');
 
@@ -100,14 +103,23 @@ function shutterpress_handle_downloadable_files($post_id)
 // Force upload a file to Wasabi and delete local file + thumbnails
 function shutterpress_force_upload_file($attachment_id)
 {
-    if (get_post_meta($attachment_id, '_shutterpress_wasabi_uploaded', true)) return true;
+    if (get_post_meta($attachment_id, '_shutterpress_wasabi_uploaded', true)) {
+        return true;
+    }
 
     $file_path = get_attached_file($attachment_id);
-    if (!$file_path || !file_exists($file_path)) return false;
+    if (!$file_path || !file_exists($file_path))
+        return false;
+
+    // ✅ Step 1: Generate watermark before uploading
+    if (isset($GLOBALS['shutterpress_watermark_handler']) && method_exists($GLOBALS['shutterpress_watermark_handler'], 'get_watermarked_image_url')) {
+        $GLOBALS['shutterpress_watermark_handler']->get_watermarked_image_url($attachment_id);
+    }
 
     $access_key = defined('DBI_AWS_ACCESS_KEY_ID') ? DBI_AWS_ACCESS_KEY_ID : '';
     $secret_key = defined('DBI_AWS_SECRET_ACCESS_KEY') ? DBI_AWS_SECRET_ACCESS_KEY : '';
-    if (!$access_key || !$secret_key) return false;
+    if (!$access_key || !$secret_key)
+        return false;
 
     try {
         $s3 = new Aws\S3\S3Client([
@@ -136,6 +148,7 @@ function shutterpress_force_upload_file($attachment_id)
             update_post_meta($attachment_id, '_shutterpress_wasabi_uploaded', 1);
             update_post_meta($attachment_id, '_wasabi_object_key', $key);
 
+            // ✅ Step 3: Now delete local file and thumbnails
             @unlink($file_path);
 
             $meta = wp_get_attachment_metadata($attachment_id);
@@ -147,6 +160,7 @@ function shutterpress_force_upload_file($attachment_id)
                     }
                 }
             }
+
             return true;
         }
 
@@ -157,10 +171,13 @@ function shutterpress_force_upload_file($attachment_id)
     return false;
 }
 
+
+
 function shutterpress_get_wasabi_key($attachment_id)
 {
     $stored_key = get_post_meta($attachment_id, '_wasabi_object_key', true);
-    if ($stored_key) return $stored_key;
+    if ($stored_key)
+        return $stored_key;
 
     if (function_exists('as3cf_get_attachment_s3_info')) {
         $s3_info = as3cf_get_attachment_s3_info($attachment_id);

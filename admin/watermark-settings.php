@@ -8,54 +8,134 @@ if (!defined('ABSPATH')) {
 
 function shutterpress_render_watermark_settings_page()
 {
-    // Handle form submissions
-    if (isset($_POST['submit'])) {
-        // Verify nonce for security
-        if (!isset($_POST['watermark_settings_nonce']) || !wp_verify_nonce($_POST['watermark_settings_nonce'], 'watermark_settings_action')) {
+    $message = '';
+    $message_type = '';
+
+    // Handle form submissions with a single nonce for both actions
+    if (isset($_POST['action']) || isset($_POST['save_and_clear']) || isset($_POST['test_watermark']) || isset($_POST['debug_all_products'])) {
+        // Verify nonce for security - using single nonce for all actions
+        if (!isset($_POST['shutterpress_nonce']) || !wp_verify_nonce($_POST['shutterpress_nonce'], 'shutterpress_admin_action')) {
             wp_die('Security check failed');
         }
 
-        if (isset($_POST['watermark_text'])) {
-            update_option('shutterpress_watermark_text', sanitize_text_field($_POST['watermark_text']));
-        }
-        if (isset($_POST['watermark_opacity'])) {
-            update_option('shutterpress_watermark_opacity', intval($_POST['watermark_opacity']));
-        }
-        if (isset($_POST['watermark_size'])) {
-            update_option('shutterpress_watermark_size', floatval($_POST['watermark_size']));
-        }
-        if (isset($_POST['watermark_angle'])) {
-            update_option('shutterpress_watermark_angle', intval($_POST['watermark_angle']));
-        }
-        if (isset($_POST['watermark_spacing'])) {
-            update_option('shutterpress_watermark_spacing', floatval($_POST['watermark_spacing']));
+        // Determine which action to take
+        $action = 'save_settings'; // default
+        if (isset($_POST['save_and_clear'])) {
+            $action = 'save_and_clear';
+        } elseif (isset($_POST['test_watermark'])) {
+            $action = 'test_watermark';
+        } elseif (isset($_POST['debug_all_products'])) {
+            $action = 'debug_all_products';
+        } elseif (isset($_POST['action'])) {
+            $action = $_POST['action'];
         }
 
-        echo '<div class="notice notice-success"><p>Watermark settings saved successfully!</p></div>';
+        switch ($action) {
+            case 'save_settings':
+                if (isset($_POST['watermark_text'])) {
+                    update_option('shutterpress_watermark_text', sanitize_text_field($_POST['watermark_text']));
+                }
+                if (isset($_POST['watermark_opacity'])) {
+                    update_option('shutterpress_watermark_opacity', intval($_POST['watermark_opacity']));
+                }
+                if (isset($_POST['watermark_size'])) {
+                    update_option('shutterpress_watermark_size', floatval($_POST['watermark_size']));
+                }
+                if (isset($_POST['watermark_angle'])) {
+                    update_option('shutterpress_watermark_angle', intval($_POST['watermark_angle']));
+                }
+                if (isset($_POST['watermark_spacing'])) {
+                    update_option('shutterpress_watermark_spacing', floatval($_POST['watermark_spacing']));
+                }
+
+                $message = 'Watermark settings saved successfully!';
+                $message_type = 'success';
+                break;
+
+            case 'clear_cache':
+                $upload_dir = wp_upload_dir();
+                $watermark_dir = $upload_dir['basedir'] . '/shutterpress-watermarks/';
+
+                $cleared = 0;
+                if (is_dir($watermark_dir)) {
+                    $files = glob($watermark_dir . '*');
+                    foreach ($files as $file) {
+                        if (is_file($file) && pathinfo($file, PATHINFO_EXTENSION) !== 'htaccess') {
+                            unlink($file);
+                            $cleared++;
+                        }
+                    }
+                }
+
+                $message = 'Watermark cache cleared! ' . $cleared . ' files removed.';
+                $message_type = 'success';
+                break;
+
+            case 'save_and_clear':
+                // Save settings first
+                if (isset($_POST['watermark_text'])) {
+                    update_option('shutterpress_watermark_text', sanitize_text_field($_POST['watermark_text']));
+                }
+                if (isset($_POST['watermark_opacity'])) {
+                    update_option('shutterpress_watermark_opacity', intval($_POST['watermark_opacity']));
+                }
+                if (isset($_POST['watermark_size'])) {
+                    update_option('shutterpress_watermark_size', floatval($_POST['watermark_size']));
+                }
+                if (isset($_POST['watermark_angle'])) {
+                    update_option('shutterpress_watermark_angle', intval($_POST['watermark_angle']));
+                }
+                if (isset($_POST['watermark_spacing'])) {
+                    update_option('shutterpress_watermark_spacing', floatval($_POST['watermark_spacing']));
+                }
+
+                // Then clear cache
+                $upload_dir = wp_upload_dir();
+                $watermark_dir = $upload_dir['basedir'] . '/shutterpress-watermarks/';
+
+                $cleared = 0;
+                if (is_dir($watermark_dir)) {
+                    $files = glob($watermark_dir . '*');
+                    foreach ($files as $file) {
+                        if (is_file($file) && pathinfo($file, PATHINFO_EXTENSION) !== 'htaccess') {
+                            unlink($file);
+                            $cleared++;
+                        }
+                    }
+                }
+
+                $message = 'Settings saved and cache cleared! ' . $cleared . ' files removed.';
+                $message_type = 'success';
+                break;
+
+            case 'test_watermark':
+                // Just set a flag that we want to show test results
+                $show_test_results = true;
+                break;
+
+            case 'debug_all_products':
+                // Get watermark handler instance
+                global $shutterpress_watermark_handler;
+                if (!$shutterpress_watermark_handler && class_exists('ShutterPress_Watermark_Handler')) {
+                    $shutterpress_watermark_handler = new ShutterPress_Watermark_Handler();
+                }
+                
+                // Run the comprehensive debugger
+                if ($shutterpress_watermark_handler && method_exists($shutterpress_watermark_handler, 'debug_all_products')) {
+                    $shutterpress_watermark_handler->debug_all_products();
+                    $message = 'Product debugging completed! Check your error logs for detailed results.';
+                    $message_type = 'success';
+                } else {
+                    $message = 'Debug method not available. Please update your watermark-handler.php file.';
+                    $message_type = 'error';
+                }
+                break;
+        }
     }
 
-    // Handle cache clearing
-    if (isset($_POST['clear_cache'])) {
-        // Verify nonce for security
-        if (!isset($_POST['clear_cache_nonce']) || !wp_verify_nonce($_POST['clear_cache_nonce'], 'clear_cache_action')) {
-            wp_die('Security check failed');
-        }
-
-        $upload_dir = wp_upload_dir();
-        $watermark_dir = $upload_dir['basedir'] . '/shutterpress-watermarks/';
-
-        $cleared = 0;
-        if (is_dir($watermark_dir)) {
-            $files = glob($watermark_dir . '*');
-            foreach ($files as $file) {
-                if (is_file($file) && pathinfo($file, PATHINFO_EXTENSION) !== 'htaccess') {
-                    unlink($file);
-                    $cleared++;
-                }
-            }
-        }
-
-        echo '<div class="notice notice-success"><p>Watermark cache cleared! ' . $cleared . ' files removed.</p></div>';
+    // Display message if any
+    if (!empty($message)) {
+        echo '<div class="notice notice-' . esc_attr($message_type) . '"><p>' . esc_html($message) . '</p></div>';
     }
 
     // Get current settings
@@ -90,8 +170,9 @@ function shutterpress_render_watermark_settings_page()
                 <div class="shutterpress-admin-card">
                     <h2>Watermark Configuration</h2>
 
-                    <form method="post" action="">
-                        <?php wp_nonce_field('watermark_settings_action', 'watermark_settings_nonce'); ?>
+                    <form method="post" action="" id="watermark-settings-form">
+                        <?php wp_nonce_field('shutterpress_admin_action', 'shutterpress_nonce'); ?>
+                        <input type="hidden" name="action" value="save_settings" />
 
                         <table class="form-table">
                             <tr>
@@ -155,7 +236,10 @@ function shutterpress_render_watermark_settings_page()
                             </tr>
                         </table>
 
-                        <?php submit_button('Save Watermark Settings'); ?>
+                        <p class="submit">
+                            <?php submit_button('Save Settings', 'primary', 'submit', false); ?>
+                            <input type="submit" name="save_and_clear" id="save-and-clear-btn" class="button button-secondary" value="Save & Clear Cache" style="margin-left: 10px;" />
+                        </p>
                     </form>
                 </div>
 
@@ -188,15 +272,145 @@ function shutterpress_render_watermark_settings_page()
                         </tr>
                     </table>
 
-                    <form method="post" action="">
-                        <?php wp_nonce_field('clear_cache_action', 'clear_cache_nonce'); ?>
-                        <input type="hidden" name="clear_cache" value="1" />
+                    <form method="post" action="" id="clear-cache-form">
+                        <?php wp_nonce_field('shutterpress_admin_action', 'shutterpress_nonce'); ?>
+                        <input type="hidden" name="action" value="clear_cache" />
                         <p class="description">
                             Clear the watermark cache to force regeneration of all watermarked images.
                             This is useful when you change watermark settings.
                         </p>
                         <?php submit_button('Clear Watermark Cache', 'secondary'); ?>
                     </form>
+                </div>
+
+                <div class="shutterpress-admin-card">
+                    <h2>System Diagnostics</h2>
+                    
+                    <?php
+                    // Get watermark handler instance for diagnostics
+                    global $shutterpress_watermark_handler;
+                    if (!$shutterpress_watermark_handler) {
+                        // Try to manually instantiate if not available
+                        if (class_exists('ShutterPress_Watermark_Handler')) {
+                            $shutterpress_watermark_handler = new ShutterPress_Watermark_Handler();
+                        }
+                    }
+                    
+                    // Check if we have the debug method
+                    if (method_exists($shutterpress_watermark_handler, 'get_system_status')) {
+                        $system_status = $shutterpress_watermark_handler->get_system_status();
+                        ?>
+                        
+                        <table class="form-table">
+                            <tr>
+                                <th scope="row">GD Extension</th>
+                                <td>
+                                    <?php 
+                                    if ($system_status['gd_extension']['available']) {
+                                        echo '<span style="color: green;">✓ Available</span>';
+                                    } else {
+                                        echo '<span style="color: red;">✗ Not Available</span>';
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <th scope="row">Watermark Directory</th>
+                                <td>
+                                    <?php 
+                                    if ($system_status['directories']['exists'] && $system_status['directories']['writable']) {
+                                        echo '<span style="color: green;">✓ Writable</span>';
+                                    } elseif ($system_status['directories']['exists']) {
+                                        echo '<span style="color: orange;">⚠ Exists but not writable</span>';
+                                    } else {
+                                        echo '<span style="color: red;">✗ Does not exist</span>';
+                                    }
+                                    ?>
+                                    <br><small><?php echo esc_html($system_status['directories']['watermark_dir']); ?></small>
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <th scope="row">Font Support</th>
+                                <td>
+                                    <?php 
+                                    if ($system_status['fonts']['font_available']) {
+                                        echo '<span style="color: green;">✓ TTF Font Available</span>';
+                                        echo '<br><small>' . esc_html($system_status['fonts']['font_path']) . '</small>';
+                                    } else {
+                                        echo '<span style="color: orange;">⚠ Using Built-in Font</span>';
+                                    }
+                                    ?>
+                                </td>
+                            </tr>
+                        </table>
+                        
+                        <?php 
+                        if (isset($show_test_results) && $show_test_results) {
+                            ?>
+                            <div style="margin-top: 20px; padding: 15px; background: #f9f9f9; border-left: 4px solid #0073aa;">
+                                <h4>Watermark Test Results:</h4>
+                                <?php
+                                global $wpdb;
+                                // Find a product image to test with
+                                $test_attachment = $wpdb->get_var("
+                                    SELECT p.ID FROM {$wpdb->posts} p 
+                                    WHERE p.post_type = 'attachment' 
+                                    AND p.post_mime_type LIKE 'image/%' 
+                                    LIMIT 1
+                                ");
+                                
+                                if ($test_attachment && method_exists($shutterpress_watermark_handler, 'debug_watermark_generation')) {
+                                    $debug_result = $shutterpress_watermark_handler->debug_watermark_generation($test_attachment);
+                                    
+                                    if (isset($debug_result['success']) && $debug_result['success']) {
+                                        echo '<p style="color: green;"><strong>✓ Watermark generation test PASSED</strong></p>';
+                                    } else {
+                                        echo '<p style="color: red;"><strong>✗ Watermark generation test FAILED</strong></p>';
+                                        if (isset($debug_result['error'])) {
+                                            echo '<p><strong>Error:</strong> ' . esc_html($debug_result['error']) . '</p>';
+                                        }
+                                    }
+                                    
+                                    echo '<details><summary>View detailed test results</summary>';
+                                    echo '<pre style="background: white; padding: 10px; margin: 10px 0; overflow-x: auto;">';
+                                    print_r($debug_result);
+                                    echo '</pre></details>';
+                                } else {
+                                    echo '<p style="color: orange;">No test image found or debug method not available.</p>';
+                                }
+                                ?>
+                            </div>
+                            <?php
+                        }
+                        ?>
+                        
+                        <form method="post" action="">
+                            <?php wp_nonce_field('shutterpress_admin_action', 'shutterpress_nonce'); ?>
+                            <input type="hidden" name="test_watermark" value="1" />
+                            <p>
+                                <input type="submit" class="button button-secondary" value="Test Watermark Generation" />
+                            </p>
+                        </form>
+
+                        <form method="post" action="" style="margin-top: 15px;">
+                            <?php wp_nonce_field('shutterpress_admin_action', 'shutterpress_nonce'); ?>
+                            <input type="hidden" name="debug_all_products" value="1" />
+                            <p>
+                                <input type="submit" class="button button-primary" value="Debug All Products" style="background-color: #e74c3c; border-color: #c0392b;" />
+                            </p>
+                            <p class="description">
+                                This will check ALL products and log detailed information about which products get watermarks and why. 
+                                Check your error logs after running this. <strong>Use only for debugging!</strong>
+                            </p>
+                        </form>
+                        
+                        <?php
+                    } else {
+                        echo '<p style="color: orange;">⚠ Diagnostic methods not available. Please update your watermark-handler.php file.</p>';
+                    }
+                    ?>
                 </div>
             </div>
 
