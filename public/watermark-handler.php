@@ -505,7 +505,7 @@ class ShutterPress_Watermark_Handler {
     
     private function get_font_path() {
         // Try to use a custom font from plugin assets
-        $font_path = plugin_dir_path(__FILE__) . '../../assets/fonts/arial.ttf';
+        $font_path = plugin_dir_path(__FILE__) . '../assets/fonts/arial.ttf';
         
         if (file_exists($font_path)) {
             return $font_path;
