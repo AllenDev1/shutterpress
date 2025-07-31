@@ -218,13 +218,13 @@ add_action('pre_get_posts', function ($query) {
 
 
 // TEMPORARY DEBUG - Remove after testing
-add_action('wp_footer', function() {
-    global $wp;
-    if (function_exists('dokan_is_user_dashboard') && dokan_is_user_dashboard() && current_user_can('manage_options')) {
-        echo '<script>console.log("Query vars:", ' . json_encode($wp->query_vars) . ');</script>';
-        echo '<script>console.log("Current URL:", "' . $_SERVER['REQUEST_URI'] . '");</script>';
-    }
-});
+// add_action('wp_footer', function() {
+//     global $wp;
+//     if (function_exists('dokan_is_user_dashboard') && dokan_is_user_dashboard() && current_user_can('manage_options')) {
+//         echo '<script>console.log("Query vars:", ' . json_encode($wp->query_vars) . ');</script>';
+//         echo '<script>console.log("Current URL:", "' . $_SERVER['REQUEST_URI'] . '");</script>';
+//     }
+// });
 // ----------------------------
 // Public Logic Includes
 // ----------------------------
