@@ -34,101 +34,50 @@ add_action('woocommerce_account_shutterpress-downloads_endpoint', function () {
 // ----------------------------
 
 // Add menu items to dashboard navigation
-add_filter('dokan_get_dashboard_nav', 'shutterpress_add_dashboard_nav');
-function shutterpress_add_dashboard_nav($urls) {
-    $urls['shutterpress-subscription'] = [
-        'title' => __('My Subscription', 'shutterpress'),
-        'url' => dokan_get_navigation_url('shutterpress-subscription'),
-        'icon' => '<i class="fas fa-box"></i>',
-        'pos' => 65,
-    ];
-    $urls['shutterpress-downloads'] = [
-        'title' => __('Download History', 'shutterpress'),
-        'url' => dokan_get_navigation_url('shutterpress-downloads'),
-        'icon' => '<i class="fas fa-download"></i>',
-        'pos' => 66,
-    ];
-    return $urls;
-}
+// add_filter('dokan_get_dashboard_nav', 'shutterpress_add_dashboard_nav');
+// function shutterpress_add_dashboard_nav($urls) {
+//     $urls['shutterpress-subscription'] = [
+//         'title' => __('My Subscription', 'shutterpress'),
+//         'url' => dokan_get_navigation_url('shutterpress-subscription'),
+//         'icon' => '<i class="fas fa-box"></i>',
+//         'pos' => 65,
+//     ];
+//     $urls['shutterpress-downloads'] = [
+//         'title' => __('Download History', 'shutterpress'),
+//         'url' => dokan_get_navigation_url('shutterpress-downloads'),
+//         'icon' => '<i class="fas fa-download"></i>',
+//         'pos' => 66,
+//     ];
+//     return $urls;
+// }
 
-// Method 1: Standard Dokan hook (for plugin)
-add_action('dokan_load_custom_template', 'shutterpress_load_dashboard_template');
-function shutterpress_load_dashboard_template($query_var) {
-    if ($query_var === 'shutterpress-subscription') {
-        shutterpress_render_subscription_page();
-    } elseif ($query_var === 'shutterpress-downloads') {
-        shutterpress_render_downloads_page();
-    }
-}
+// Fallback if Dokan doesn't render our page
+add_action('template_redirect', function () {
+    if (!function_exists('dokan_is_user_dashboard') || !dokan_is_user_dashboard()) return;
 
-// Method 2: Theme-specific hooks (for theme dashboard)
-add_action('dokan_dashboard_content_area_header', 'shutterpress_dashboard_content_check', 5);
-function shutterpress_dashboard_content_check() {
-    global $wp;
-    
-    if (isset($wp->query_vars['shutterpress-subscription'])) {
-        // Remove default content
-        remove_all_actions('dokan_dashboard_content_area_header', 10);
-        remove_all_actions('dokan_dashboard_content_area_header', 15);
-        
-        // Add our content
-        add_action('dokan_dashboard_content_area_header', function() {
-            shutterpress_render_subscription_page();
-        }, 20);
-        
-    } elseif (isset($wp->query_vars['shutterpress-downloads'])) {
-        // Remove default content
-        remove_all_actions('dokan_dashboard_content_area_header', 10);
-        remove_all_actions('dokan_dashboard_content_area_header', 15);
-        
-        // Add our content
-        add_action('dokan_dashboard_content_area_header', function() {
-            shutterpress_render_downloads_page();
-        }, 20);
-    }
-}
+    $uri = $_SERVER['REQUEST_URI'];
 
-// Method 3: Direct URL interception (failsafe)
-add_action('wp', 'shutterpress_intercept_dashboard_urls', 1);
-function shutterpress_intercept_dashboard_urls() {
-    $request_uri = $_SERVER['REQUEST_URI'] ?? '';
-    
-    if (strpos($request_uri, 'shutterpress-subscription') !== false) {
-        add_action('wp_loaded', function() {
-            if (function_exists('dokan_is_user_dashboard') && dokan_is_user_dashboard()) {
-                ob_start();
-                add_action('wp_footer', function() {
-                    $content = ob_get_clean();
-                    if (strpos($content, 'shutterpress-subscription-wrapper') === false) {
-                        // Content didn't load, force it
-                        echo '<div style="padding: 20px;">';
-                        shutterpress_render_subscription_page();
-                        echo '</div>';
-                    } else {
-                        echo $content;
-                    }
-                });
-            }
-        });
-    } elseif (strpos($request_uri, 'shutterpress-downloads') !== false) {
-        add_action('wp_loaded', function() {
-            if (function_exists('dokan_is_user_dashboard') && dokan_is_user_dashboard()) {
-                ob_start();
-                add_action('wp_footer', function() {
-                    $content = ob_get_clean();
-                    if (strpos($content, 'shutterpress-download-history-wrapper') === false) {
-                        // Content didn't load, force it
-                        echo '<div style="padding: 20px;">';
-                        shutterpress_render_downloads_page();
-                        echo '</div>';
-                    } else {
-                        echo $content;
-                    }
-                });
-            }
-        });
-    }
-}
+    ob_start();
+
+    add_action('dokan_dashboard_content_inside', function () use ($uri) {
+        if (strpos($uri, 'shutterpress-subscription') !== false) {
+            echo '<div class="shutterpress-dashboard-page"><div class="page-header"><h2>My Subscription</h2></div><div class="page-content">';
+            echo do_shortcode('[shutterpress_user_subscription]');
+            echo '</div></div>';
+        }
+
+        if (strpos($uri, 'shutterpress-downloads') !== false) {
+            echo '<div class="shutterpress-dashboard-page"><div class="page-header"><h2>Download History</h2></div><div class="page-content">';
+            echo do_shortcode('[shutterpress_download_history]');
+            echo '</div></div>';
+        }
+    });
+
+    add_action('wp_footer', function () {
+        ob_end_flush();
+    });
+});
+
 
 // Render subscription page content
 function shutterpress_render_subscription_page() {
