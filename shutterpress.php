@@ -1,9 +1,17 @@
 <?php
 /**
  * Plugin Name: ShutterPress
- * Description: Shutterstock-style image download system using WooCommerce, Dokan, and custom quotas.
- * Version: 1.0.0
+ * Plugin URI: https://github.com/AllenDev1/shutterpress
+ * Description: A complete Shutterstock-style image marketplace for WordPress. Includes quota-based subscriptions, automatic image watermarking, secure downloads, and Dokan multi-vendor support.
+ * Version: 1.2.0
+ * Author: Narayan Dev
+ * Author URI: https://thebrilliantideas.com/
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain: shutterpress
+ * Domain Path: /languages
  */
+
 
 defined('ABSPATH') || exit;
 
