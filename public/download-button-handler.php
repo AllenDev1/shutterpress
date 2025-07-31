@@ -115,11 +115,15 @@ function shutterpress_render_download_button()
 function shutterpress_user_has_quota($user_id)
 {
     global $wpdb;
-
     $table = $wpdb->prefix . 'shutterpress_user_quotas';
 
+    // Check for active quota that hasn't expired
     $quota = $wpdb->get_row($wpdb->prepare(
-        "SELECT * FROM $table WHERE user_id = %d AND status = 'active' ORDER BY created_at DESC LIMIT 1",
+        "SELECT * FROM $table 
+         WHERE user_id = %d 
+         AND status = 'active' 
+         AND (quota_renewal_date IS NULL OR quota_renewal_date >= CURDATE())
+         ORDER BY created_at DESC LIMIT 1",
         $user_id
     ));
 
@@ -129,7 +133,6 @@ function shutterpress_user_has_quota($user_id)
         return true;
     return ($quota->quota_total > $quota->quota_used);
 }
-
 add_action('wp_footer', 'shutterpress_hide_elements_js');
 
 function shutterpress_hide_elements_js()

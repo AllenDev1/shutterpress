@@ -133,4 +133,75 @@ function shutterpress_handle_subscription_purchase($order_id)
     }
 }
 
+// ========================================
+// AUTOMATIC SUBSCRIPTION EXPIRATION SYSTEM
+// ========================================
+
+// Schedule expiration check on plugin activation
+register_activation_hook(__FILE__, 'shutterpress_schedule_expiration_check');
+
+function shutterpress_schedule_expiration_check() {
+    if (!wp_next_scheduled('shutterpress_check_expired_subscriptions')) {
+        wp_schedule_event(time(), 'daily', 'shutterpress_check_expired_subscriptions');
+    }
+}
+
+// Clean up scheduled event on deactivation
+register_deactivation_hook(__FILE__, 'shutterpress_clear_expiration_schedule');
+
+function shutterpress_clear_expiration_schedule() {
+    $timestamp = wp_next_scheduled('shutterpress_check_expired_subscriptions');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'shutterpress_check_expired_subscriptions');
+    }
+}
+
+// Hook for the scheduled event - runs daily
+add_action('shutterpress_check_expired_subscriptions', 'shutterpress_expire_old_subscriptions');
+
+function shutterpress_expire_old_subscriptions() {
+    global $wpdb;
+    $table = $wpdb->prefix . 'shutterpress_user_quotas';
+    
+    // Update expired subscriptions
+    $updated = $wpdb->query("
+        UPDATE $table 
+        SET status = 'expired' 
+        WHERE status = 'active' 
+        AND quota_renewal_date IS NOT NULL 
+        AND quota_renewal_date < CURDATE()
+    ");
+    
+    if ($updated > 0) {
+        error_log("ShutterPress: Automatically expired $updated subscriptions on " . date('Y-m-d H:i:s'));
+    }
+    
+    return $updated;
+}
+
+// Also check on page loads (backup system) - runs occasionally 
+add_action('init', 'shutterpress_check_expiration_realtime');
+
+function shutterpress_check_expiration_realtime() {
+    // Only run 2% of the time to avoid performance issues
+    if (rand(1, 100) <= 2) {
+        shutterpress_expire_old_subscriptions();
+    }
+}
+
+// Manual trigger for testing (admin only)
+add_action('wp_ajax_shutterpress_manual_expire_check', 'shutterpress_manual_expire_check');
+
+function shutterpress_manual_expire_check() {
+    if (!current_user_can('manage_options')) {
+        wp_die('Unauthorized');
+    }
+    
+    $expired_count = shutterpress_expire_old_subscriptions();
+    wp_send_json_success([
+        'message' => "Checked for expired subscriptions. Updated: $expired_count",
+        'expired_count' => $expired_count
+    ]);
+}
+
 require_once plugin_dir_path(__FILE__) . 'download-handler.php';
