@@ -671,6 +671,18 @@ function shutterpress_product_images_meta_box_callback($post)
     }
     </script>';
 }
+add_action('admin_head', function () {
+    if (!function_exists('get_current_screen')) return;
+    $screen = get_current_screen();
+    if (!$screen) return;
+
+    // Only hide notices on ShutterPress plugin pages
+    if (strpos($screen->id, 'shutterpress') !== false) {
+        remove_all_actions('admin_notices');
+        remove_all_actions('all_admin_notices');
+    }
+});
+
 
 require_once SHUTTERPRESS_PATH . 'includes/init.php';
 require_once SHUTTERPRESS_PATH . 'admin/admin-init.php';
