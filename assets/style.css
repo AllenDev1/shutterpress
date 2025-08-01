@@ -235,7 +235,7 @@
 
 @media (max-width: 768px) {
   .shutterpress-billing-tabs {
-    flex-direction: column;
+    /* flex-direction: column; */
     max-width: 300px;
   }
 
